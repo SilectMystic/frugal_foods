@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup
 import requests
 from selenium import webdriver
-from fake_useragent import UserAgent
+# from fake_useragent import UserAgent
 import time
 import random
 from selenium.webdriver.chrome.options import Options

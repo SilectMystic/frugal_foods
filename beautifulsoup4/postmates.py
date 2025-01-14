@@ -1,12 +1,16 @@
 from bs4 import BeautifulSoup
 import requests
 from selenium import webdriver
-from fake_useragent import UserAgent
+# from fake_useragent import UserAgent
 import time
 import random
 from selenium.webdriver.chrome.options import Options
 import pymysql
 import pymysql.cursors
+from dynaconf import Dynaconf
+settings = Dynaconf(
+    settings_file = ('../settings.toml')
+)
 
 #These are links to try and scan all going to the same McDonald's
 DoorDash = "https://www.doordash.com/store/mcdonald's-southside-837652/?cursor=eyJzZWFyY2hfaXRlbV9jYXJvdXNlbF9jdXJzb3IiOnsicXVlcnkiOiJtYyBkb24iLCJpdGVtX2lkcyI6W10sInNlYXJjaF90ZXJtIjoibWMgZG9uIiwidmVydGljYWxfaWQiOi05OTksInZlcnRpY2FsX25hbWUiOiJhbGwifSwic3RvcmVfcHJpbWFyeV92ZXJ0aWNhbF9pZHMiOlsxLDE5Nl19&pickup=false"
@@ -80,13 +84,15 @@ while True:
         break
 
 # # db_link is just for the connection and a print statement so please just change it here.
-db_link = '10.100.33.60'
+db_link = '192.168.1.173'
+db_port = 3417
 
 connection = pymysql.connect(
-    database = 'frugal_foods',
-    user = 'cvasquez',
-    password = '242590909',
+    database = settings.db_name,
+    user = settings.db_user,
+    password = settings.db_pass,
     host = db_link,
+    port = db_port,
     cursorclass = pymysql.cursors.DictCursor
 )
 
@@ -97,6 +103,7 @@ failed_attempts = 0
 notFound = []
 missing_items = 0
 dup_items = 0
+name_in_lim = 0
 
 for items in divs:
 #     # the next for segments are using the .find from beautifulsoup as explained before to try and filter out the items by using a attribute unique for them.
@@ -105,6 +112,7 @@ for items in divs:
     item_name = item_name.contents
     item_name = item_name[0]
     if item_name in limit:
+        name_in_lim += 1
         continue
     else:
         # try:
@@ -162,6 +170,8 @@ for items in divs:
         #     pass
 
 print()
+if name_in_lim > 0:
+    print(f'There were a total of {name_in_lim} name in limit limiter.')
 if subItems <= 0:
     print(f'Scan failed with {subItems} submitted items and a total of {dup_items} duplicated items.')
 if failed_attempts > 0:
@@ -172,6 +182,6 @@ if missing_items > 0:
     print(f'There was a total of {missing_items} not found items on DB.')
 if subItems > 0:
     print()
-    print(f'Total of {subItems} items has been submitted to the Database. Please check if data is correct on: https://{db_link}')
+    print(f'Total of {subItems} items has been submitted to the Database. Please check if data is correct on: https://pma.nanibro.net')
 
 driver.quit()

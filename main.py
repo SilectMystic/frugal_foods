@@ -30,7 +30,7 @@ class User:
 
 def connect_db():
     return pymysql.connect(
-        host="10.100.33.60",
+        host="192.168.1.173:3417",
         user= settings.db_user,
         password = str(settings.db_pass),
         database=settings.db_name,
@@ -83,21 +83,21 @@ def restaurant(restaurant_id):
     cursor = get_db().cursor()
     cursor.execute(f"SELECT * FROM `restaurant` WHERE `restaurant_id` = {restaurant_id}")
     restaurant_results = cursor.fetchone()
-    cursor.execute(f"SELECT * FROM `menu_catagories` WHERE `restaurant_id` = {restaurant_id}")
-    catagory_results = cursor.fetchall()
+    cursor.execute(f"SELECT * FROM `menu_categories` WHERE `restaurant_id` = {restaurant_id}")
+    category_results = cursor.fetchall()
     cursor.execute(f"""
         SELECT * FROM `items` 
         INNER JOIN `price` ON `items`.item_id = `price`.item_id
         INNER JOIN `delivery_services` ON `price`.service_id = `delivery_services`.service_id
-        INNER JOIN `menu_catagories` on `items`.catagory_id = `menu_catagories`.catagory_id
+        INNER JOIN `menu_categories` on `items`.category_id = `menu_categories`.category_id
         WHERE `items`.`restaurant_id` = {restaurant_id}
-        ORDER BY `items`.`catagory_id`
+        ORDER BY `items`.`category_id`
     """)
     
     itemprice_results = cursor.fetchall()
 
     # return itemprice_results
-    return render_template("restaurant.jinja", restaurant_data = restaurant_results, catagory_data = catagory_results, itemprice = itemprice_results)
+    return render_template("restaurant.jinja", restaurant_data = restaurant_results, category_data = category_results, itemprice = itemprice_results)
 
 ph = PasswordHasher()
 

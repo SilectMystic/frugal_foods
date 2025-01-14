@@ -7,6 +7,16 @@ import random
 from selenium.webdriver.chrome.options import Options
 import pymysql
 import pymysql.cursors
+import undetected_chromedriver as uc
+from dynaconf import Dynaconf
+settings = Dynaconf(
+    settings_file = ('../settings.toml')
+)
+
+ua = UserAgent() 
+options = webdriver.ChromeOptions()
+options.add_argument(f'user-agent={ua.random}')
+driver = uc.Chrome(options=options)
 
 #These are links to try and scan all going to the same McDonald's
 DoorDash ="https://www.doordash.com/store/mcdonald's-fort-greene-837684/1198049/?event_type=autocomplete&pickup=false"
@@ -30,17 +40,18 @@ Postmates="https://postmates.com/store/mcdonalds-brooklyn-flatbush-ave/mAWk-EcAQ
 # read javascript because if you do it normally it won't work.
 
 # This code is to tell the webdriver from selenium what browser to use. For example its using Chrome.
-driver = webdriver.Chrome()
+# driver = webdriver.Chrome()
 # driver.get is to tell the webdriver to what website to search and scan.
 driver.get(DoorDash3)
 
 # x and l are variables used in order to control the while loop statement thats used below, for example l its used as the limit of iterations
 # while x counts the amounts of iterations.(Right now its on 50 for testing purposes. Recommend to put it on 600 for an actual scan).
 x = 0
-l = 550
+l = 220
 
 # The variable divs its being used to store all the data that is gathered by beautifulsoup4 in order to use later in an for loop.
 divs = []
+divs2 = []
 
 while True:
     x += 1
@@ -52,16 +63,20 @@ while True:
     # In the results variable is set to save the page.findAll expression which what it does is that it searches the page variable based on
     # the requirements that you give it, for example here the requirements is that the tag must be a div and the data anchor id to be
     # MenuItem. findAll what it does is that it searches the entire document while find only searches for the first one.
-    results = page.findAll('div', class_ = 'sc-3c26af0f-0 onJcd')
+    results = page.findAll('h2')
+    results2 = page.findAll(class_='sc-c7df97f7-0 cOzYZz')
     # .extend saves all input to the divs variable from before the while loop.
     # print(results)
-    divs.extend(results)
+    divs2.extend(results)
+    divs.extend(results2)
     # print(results)
     print(f'{x} of {l} done.')
 
     # this segment of code here is to print the content in a html file for testing purposes.
     # with open('dd.html', 'w', encoding='utf-8') as f:
     #     f.write(str(results))
+    # with open('dd2.html', 'w', encoding='utf-8') as g:
+    #     g.write(str(results2))
     # n = random.randint(0,50)
     # if n == 5:
     #     print('Time to sleep')
@@ -78,14 +93,20 @@ while True:
     if x == l:
         break
 
+# with open('dd3.html', 'w', encoding='utf-8') as h:
+#     h.write(str(divs))
+
 # db_link is just for the connection and a print statement so please just change it here.
-db_link = '127.0.0.1'
+db_link = '192.168.1.173'
+db_link2= '10.100.34.80'
+db_port = 3417
 
 connection = pymysql.connect(
-    database = 'frugal_foods',
-    user = 'cvasquez',
-    password = '242590909',
-    host = db_link,
+    database = settings.db_name2,
+    user = settings.db_user2,
+    password = settings.db_pass2,
+    host = db_link2,
+    # port = db_port,
     cursorclass = pymysql.cursors.DictCursor
 )
 
@@ -94,30 +115,39 @@ limit = []
 subItems = 0
 failed_attempts = 0
 dup_items = 0
+no_item_name = 0
+dup_cat = 0
+name_in_lim = 0
+no_cat_found = 0
 
-restaurant_id = 6
+restaurant_id = 1
 
-for items in divs:
+for items in divs2:
     # the next for segments are using the .find from beautifulsoup as explained before to try and filter out the items by using a attribute unique for them.
     # .contents is used to only gather the actual text and not the code with text.
     # item_id = items.find(attrs={'data-item-id' : True})
     # print(item_id)
-    catagory_name = items.find('h2', class_='chXaaR')
-    if not catagory_name:
+    category_name = items.find(class_='Text-sc-1nm69d8-0 flyptG')
+    print(category_name)
+    if not category_name:
+        no_cat_found += 1
         continue
-    catagory_name = catagory_name.contents
-    catagory_name = catagory_name[0]
-    if catagory_name == 'Most Ordered' or catagory_name == 'Most Popular':
+    category_name = category_name.contents
+    category_name = category_name[0]
+    if category_name == 'Most Ordered' or category_name == 'Most Popular' or category_name == "McDonald's" or category_name == 'Reviews':
+        dup_cat += 1
         continue
     item_name = items.find('h3', {'data-telemetry-id' : "storeMenuItem.title"})
     if not item_name:
+        no_item_name += 1
         continue
     item_name = item_name.contents
     item_name = item_name[0]
     if item_name in limit:
+        name_in_lim += 1
         continue
     else:
-        # try:
+        try:
             limit.append(item_name)
 
             item_name = items.find('h3', {'data-telemetry-id' : "storeMenuItem.title"})
@@ -155,17 +185,17 @@ for items in divs:
                  item_des = item_des[0]
 
             cursor = connection.cursor()
-            cursor.execute(f"SELECT `catagory_id` FROM `menu_categories` WHERE `catagory_name` = '{catagory_name}'")
-            catagory = cursor.fetchone()
-            if not catagory:
-                cursor.execute(f"INSERT INTO `menu_categories` (`catagory_name`, `restaurant_id`) VALUES ('{catagory_name}', '{restaurant_id}')")
-                cursor.execute(f"SELECT `catagory_id` FROM `menu_categories` WHERE `catagory_name` = '{catagory_name}'")
-                catagory = cursor.fetchone()
-                db_catagory = catagory['catagory_id']
+            cursor.execute(f"SELECT `category_id` FROM `menu_categories` WHERE `category_name` = '{category_name}'")
+            category = cursor.fetchone()
+            if not category:
+                cursor.execute(f"INSERT INTO `menu_categories` (`category_name`, `restaurant_id`) VALUES ('{category_name}', '{restaurant_id}')")
+                cursor.execute(f"SELECT `category_id` FROM `menu_categories` WHERE `category_name` = '{category_name}'")
+                category = cursor.fetchone()
+                db_category = category['category_id']
             else:
-                db_catagory = catagory['catagory_id']
+                db_category = category['category_id']
             # this code is to make the bot automatically upload the data into the database. For now its manual input on restaurant and category but hopefully we could get the category automated.
-            cursor.execute(f'INSERT INTO `items` (`item_name`, `picture`, `restaurant_id`, `item_description`, `catagory_id`) VALUES ("{item_name}", "{item_picture}", "{restaurant_id}", "{item_des}", "{db_catagory}");')
+            cursor.execute(f'INSERT INTO `items` (`item_name`, `picture`, `restaurant_id`, `item_description`, `category_id`) VALUES ("{item_name}", "{item_picture}", "{restaurant_id}", "{item_des}", "{db_category}");')
             connection.commit()
             # this execute is to be able to get the id of the item uploaded to be able to assign the id on the price.
             cursor.execute(f"SELECT `item_id` FROM `items` ORDER BY `item_id` DESC;")
@@ -177,17 +207,21 @@ for items in divs:
             cursor.close()
             connection.commit()
             subItems+=1
-        # except:
-        #     failed_attempts+=1
-        #     pass
+        except:
+            failed_attempts+=1
+            pass
 
 print()
+if dup_cat > 0 or no_item_name > 0 or name_in_lim > 0:
+    print(f'There were a total of {dup_cat} "Most Ordered" or "Most Popular". \n There were a total of {no_item_name} no item names. \n There were a total of {name_in_lim} name in limit limiter.')
+if no_cat_found > 0:
+    print(f'There were a total of {no_cat_found} categories not found. THIS MIGHT BE NORMAL/ONLY MIND WHEN TESTING GOES WRONG')
 if subItems <= 0:
     print(f'Scan failed with {subItems} submitted items and a total of {dup_items} duplicated items.')
 if failed_attempts > 0:
     print(f'There was a total of {failed_attempts} failed attempts for submitted items.')
 if subItems > 0:
     print()
-    print(f'Total of {subItems} items has been submitted to the Database. Please check if data is correct on: https://{db_link}')
+    print(f'Total of {subItems} items has been submitted to the Database. Please check if data is correct on: https://pma.nanibro.net')
 
 driver.quit()
