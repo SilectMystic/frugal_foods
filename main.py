@@ -30,7 +30,8 @@ class User:
 
 def connect_db():
     return pymysql.connect(
-        host="192.168.1.173:3417",
+        host="192.168.1.173",
+        port = 3417,
         user= settings.db_user,
         password = str(settings.db_pass),
         database=settings.db_name,
