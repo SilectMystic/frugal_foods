@@ -54,7 +54,7 @@ def close_db(error):
 @login_manager.user_loader
 def load_user(user_id):
     cursor = get_db().cursor()
-    cursor.execute(f"SELECT * FROM `users` WHERE `id` = {user_id}")
+    cursor.execute("SELECT * FROM `users` WHERE `id` = %s"(user_id))
     result = cursor.fetchone()
     cursor.close()
     get_db().commit()
@@ -82,18 +82,18 @@ def landing ():
 @app.route('/restaurant/<restaurant_id>', methods=['GET', 'POST'])
 def restaurant(restaurant_id):
     cursor = get_db().cursor()
-    cursor.execute(f"SELECT * FROM `restaurant` WHERE `restaurant_id` = {restaurant_id}")
+    cursor.execute("SELECT * FROM `restaurant` WHERE `restaurant_id` = %s",(restaurant_id))
     restaurant_results = cursor.fetchone()
-    cursor.execute(f"SELECT * FROM `menu_categories` WHERE `restaurant_id` = {restaurant_id}")
+    cursor.execute("SELECT * FROM `menu_categories` WHERE `restaurant_id` = %s",(restaurant_id))
     category_results = cursor.fetchall()
-    cursor.execute(f"""
+    cursor.execute("""
         SELECT * FROM `items` 
         INNER JOIN `price` ON `items`.item_id = `price`.item_id
         INNER JOIN `delivery_services` ON `price`.service_id = `delivery_services`.service_id
         INNER JOIN `menu_categories` on `items`.category_id = `menu_categories`.category_id
-        WHERE `items`.`restaurant_id` = {restaurant_id}
+        WHERE `items`.`restaurant_id` = %s
         ORDER BY `items`.`category_id`
-    """)
+    """,(restaurant_id))
     
     itemprice_results = cursor.fetchall()
 
@@ -113,7 +113,7 @@ def signup():
         # hashed_username = ph.hash(new_username)
         conn = connect_db()  # Call the connect_db function here
         cursor = conn.cursor()
-        cursor.execute(f'INSERT INTO `users` (`username`, `password`, `email`) VALUES (%s, %s, %s)',
+        cursor.execute('INSERT INTO `users` (`username`, `password`, `email`) VALUES (%s, %s, %s)',
         (new_username, hashed_password, new_email))
         cursor.close()
         conn.close()
@@ -127,7 +127,7 @@ def login():
         username = request.form['username']
         password = request.form['password']
         cursor = get_db().cursor()
-        cursor.execute(f'SELECT * FROM `users` WHERE username=%s', (username,))
+        cursor.execute('SELECT * FROM `users` WHERE username=%s', (username,))
         result = cursor.fetchone()
         cursor.close()
 
